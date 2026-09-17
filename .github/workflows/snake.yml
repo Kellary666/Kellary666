@@ -5,18 +5,20 @@ on:
   schedule:
     - cron: "0 0 * * *"
 
+permissions:
+  contents: write
+
 jobs:
   generate:
     runs-on: ubuntu-latest
 
-    permissions:
-      contents: write
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: main
 
-      - name: Generate custom snake
+      - name: Generate snake
         shell: bash
         run: |
           mkdir -p assets
@@ -24,57 +26,56 @@ jobs:
           python3 <<'PY'
           from pathlib import Path
 
-          width = 900
-          height = 240
+          WIDTH = 900
+          HEIGHT = 240
 
-          cols = 26
-          rows = 6
+          COLS = 26
+          ROWS = 6
 
-          start_x = 45
-          start_y = 45
-          dx = 32
-          dy = 30
+          START_X = 45
+          START_Y = 45
 
-          duration = 18
+          DX = 32
+          DY = 30
+
+          DURATION = 18
 
           points = []
 
-          for row in range(rows):
-              if row % 2 == 0:
-                  columns = range(cols)
-              else:
-                  columns = range(cols - 1, -1, -1)
+          for row in range(ROWS):
+              columns = range(COLS) if row % 2 == 0 else range(COLS - 1, -1, -1)
 
               for col in columns:
-                  x = start_x + col * dx
-                  y = start_y + row * dy
+                  x = START_X + col * DX
+                  y = START_Y + row * DY
                   points.append((x, y))
 
           total = len(points)
 
           path = "M " + " L ".join(
-              f"{x} {y}"
-              for x, y in points
+              f"{x} {y}" for x, y in points
           )
 
           svg = []
 
           svg.append(
               f'<svg xmlns="http://www.w3.org/2000/svg" '
-              f'width="{width}" height="{height}" '
-              f'viewBox="0 0 {width} {height}">'
+              f'width="{WIDTH}" height="{HEIGHT}" '
+              f'viewBox="0 0 {WIDTH} {HEIGHT}">'
           )
 
+          # Background
           svg.append(
               '<rect x="10" y="10" width="880" height="220" '
               'rx="18" fill="#0d1117" '
               'stroke="#30363d" stroke-width="2"/>'
           )
 
+          # Red glow
           svg.append(
               '<defs>'
               '<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">'
-              '<feGaussianBlur stdDeviation="2.2" result="blur"/>'
+              '<feGaussianBlur stdDeviation="2" result="blur"/>'
               '<feMerge>'
               '<feMergeNode in="blur"/>'
               '<feMergeNode in="SourceGraphic"/>'
@@ -93,69 +94,88 @@ jobs:
 
           svg.append('<g filter="url(#glow)">')
 
+          # Red dots
           for index, (x, y) in enumerate(points):
-              opacity = opacity_levels[
-                  index % len(opacity_levels)
-              ]
+
+              opacity = opacity_levels[index % len(opacity_levels)]
 
               progress = index / max(total - 1, 1)
-              before = max(
-                  0.0,
-                  progress - 0.005
+
+              start_fade = max(
+                  0,
+                  progress - 0.008
               )
 
               svg.append(
-                  f'<circle cx="{x}" cy="{y}" '
-                  f'r="6.5" fill="#ff0000" '
+                  f'<circle '
+                  f'cx="{x}" '
+                  f'cy="{y}" '
+                  f'r="6.5" '
+                  f'fill="#ff0000" '
                   f'opacity="{opacity}">'
+                  
                   f'<animate '
                   f'attributeName="opacity" '
                   f'values="{opacity};{opacity};0;0" '
-                  f'keyTimes="0;{before:.4f};'
-                  f'{progress:.4f};1" '
-                  f'dur="{duration}s" '
+                  f'keyTimes="0;{start_fade:.4f};{progress:.4f};1" '
+                  f'dur="{DURATION}s" '
                   f'repeatCount="indefinite"/>'
+                  
                   f'</circle>'
               )
 
           svg.append('</g>')
 
+          # Snake path
           svg.append(
-              f'<path id="snakePath" '
+              f'<path '
+              f'id="snakePath" '
               f'd="{path}" '
-              f'fill="none" stroke="none"/>'
+              f'fill="none" '
+              f'stroke="none"/>'
           )
 
+          # Black snake body
           snake = [
-              (10.0, "#000000", 0.00),
-              (9.5, "#020202", -0.12),
-              (9.0, "#050505", -0.24),
-              (8.5, "#080808", -0.36),
-              (8.0, "#0b0b0b", -0.48),
-              (7.5, "#101010", -0.60),
-              (7.0, "#151515", -0.72),
-              (6.5, "#1a1a1a", -0.84),
-              (6.0, "#202020", -0.96),
-              (5.5, "#262626", -1.08)
+              (11.0, "#000000", 0.00),
+              (10.5, "#010101", -0.12),
+              (10.0, "#030303", -0.24),
+              (9.5, "#050505", -0.36),
+              (9.0, "#080808", -0.48),
+              (8.5, "#0b0b0b", -0.60),
+              (8.0, "#101010", -0.72),
+              (7.5, "#151515", -0.84),
+              (7.0, "#1a1a1a", -0.96),
+              (6.5, "#202020", -1.08),
+              (6.0, "#262626", -1.20),
+              (5.5, "#303030", -1.32)
           ]
 
           for radius, color, begin in snake:
+
               svg.append(
-                  f'<circle r="{radius}" '
+                  f'<circle '
+                  f'r="{radius}" '
                   f'fill="{color}">'
+                  
                   f'<animateMotion '
-                  f'dur="{duration}s" '
+                  f'dur="{DURATION}s" '
                   f'begin="{begin}s" '
                   f'repeatCount="indefinite">'
+                  
                   f'<mpath href="#snakePath"/>'
+                  
                   f'</animateMotion>'
                   f'</circle>'
               )
 
+          # Border on top
           svg.append(
-              '<rect x="10" y="10" '
+              '<rect '
+              'x="10" y="10" '
               'width="880" height="220" '
-              'rx="18" fill="none" '
+              'rx="18" '
+              'fill="none" '
               'stroke="#30363d" '
               'stroke-width="4"/>'
           )
@@ -166,10 +186,23 @@ jobs:
               "\n".join(svg),
               encoding="utf-8"
           )
+
+          print("Created assets/snake.svg")
           PY
 
-      - name: Commit generated snake
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "Update custom snake"
-          file_pattern: assets/snake.svg"none
+          echo "Generated files:"
+          ls -la assets
+
+      - name: Commit snake to main
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add assets/snake.svg
+
+          git status
+
+          git commit -m "Update snake animation" || echo "No changes to commit"
+
+          git push origin main
