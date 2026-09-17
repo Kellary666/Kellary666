@@ -1,12 +1,11 @@
 <h1 align="center">chetirkanaschestnare</h1>
 
 <h3 align="center">
-Go • Backend • System Analysis
+atakshenasabufere
 </h3>
 
 ---
 
-### 🐍 My contribution snake
 
 <picture>
   <source
