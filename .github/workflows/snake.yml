@@ -4,16 +4,11 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 0 * * *"
-  push:
-    branches:
-      - main
-    paths:
-      - ".github/workflows/snake.yml"
-      - "README.md"
 
 jobs:
   generate:
     runs-on: ubuntu-latest
+
     permissions:
       contents: write
 
@@ -21,161 +16,173 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Generate custom snake svg
+      - name: Generate custom snake
+        shell: bash
         run: |
           mkdir -p assets
 
-          python <<'PY'
+          python3 <<'PY'
           from pathlib import Path
 
-          WIDTH = 900
-          HEIGHT = 240
+          width = 900
+          height = 240
 
           cols = 26
           rows = 6
 
-          start_x = 42
-          start_y = 44
+          start_x = 45
+          start_y = 45
           dx = 32
           dy = 30
 
-          dot_radius = 6.5
-          duration = 18.0
+          duration = 18
 
-          rect_x = 12
-          rect_y = 12
-          rect_w = 876
-          rect_h = 216
-          rect_rx = 18
-
-          # Generate serpentine path points
           points = []
+
           for row in range(rows):
               if row % 2 == 0:
-                  xs = range(cols)
+                  columns = range(cols)
               else:
-                  xs = range(cols - 1, -1, -1)
+                  columns = range(cols - 1, -1, -1)
 
-              for col in xs:
+              for col in columns:
                   x = start_x + col * dx
                   y = start_y + row * dy
                   points.append((x, y))
 
-          total_points = len(points)
+          total = len(points)
 
-          path_d = "M " + " L ".join(f"{x} {y}" for x, y in points)
+          path = "M " + " L ".join(
+              f"{x} {y}"
+              for x, y in points
+          )
 
-          # Opacity palette for red dots
-          opacity_levels = [0.22, 0.45, 0.72, 1.0]
+          svg = []
 
-          dots_svg = []
-          for idx, (x, y) in enumerate(points):
-              # Restore logical grid position from coordinates
-              col = round((x - start_x) / dx)
-              row = round((y - start_y) / dy)
+          svg.append(
+              f'<svg xmlns="http://www.w3.org/2000/svg" '
+              f'width="{width}" height="{height}" '
+              f'viewBox="0 0 {width} {height}">'
+          )
 
-              opacity = opacity_levels[(row * 3 + col) % len(opacity_levels)]
+          svg.append(
+              '<rect x="10" y="10" width="880" height="220" '
+              'rx="18" fill="#0d1117" '
+              'stroke="#30363d" stroke-width="2"/>'
+          )
 
-              progress = idx / (total_points - 1)
-              hold = max(0.0, progress - 0.004)
+          svg.append(
+              '<defs>'
+              '<filter id="glow" x="-50%" y="-50%" width="200%" height="200%">'
+              '<feGaussianBlur stdDeviation="2.2" result="blur"/>'
+              '<feMerge>'
+              '<feMergeNode in="blur"/>'
+              '<feMergeNode in="SourceGraphic"/>'
+              '</feMerge>'
+              '</filter>'
+              '</defs>'
+          )
 
-              dots_svg.append(f'''
-    <circle cx="{x}" cy="{y}" r="{dot_radius}" fill="#ff0000" opacity="{opacity}">
-      <animate
-        attributeName="opacity"
-        values="{opacity};{opacity};0;0"
-        keyTimes="0;{hold:.4f};{progress:.4f};1"
-        dur="{duration}s"
-        repeatCount="indefinite"
-      />
-    </circle>''')
-
-          # Snake body circles
-          snake_parts = [
-              ("10",   "#000000", "1.00", "0.00"),
-              ("9.2",  "#050505", "0.98", "-0.12"),
-              ("8.5",  "#0a0a0a", "0.95", "-0.24"),
-              ("7.9",  "#101010", "0.92", "-0.36"),
-              ("7.3",  "#171717", "0.88", "-0.48"),
-              ("6.7",  "#1e1e1e", "0.84", "-0.60"),
-              ("6.1",  "#252525", "0.80", "-0.72"),
-              ("5.5",  "#2c2c2c", "0.76", "-0.84"),
+          opacity_levels = [
+              0.25,
+              0.40,
+              0.60,
+              0.80,
+              1.00
           ]
 
-          snake_svg = []
-          for radius, color, opacity, begin in snake_parts:
-              snake_svg.append(f'''
-    <circle r="{radius}" fill="{color}" opacity="{opacity}">
-      <animateMotion
-        dur="{duration}s"
-        begin="{begin}s"
-        repeatCount="indefinite"
-        rotate="auto"
-      >
-        <mpath href="#snakePath" />
-      </animateMotion>
-    </circle>''')
+          svg.append('<g filter="url(#glow)">')
 
-          svg = f'''<svg
-  xmlns="http://www.w3.org/2000/svg"
-  width="{WIDTH}"
-  height="{HEIGHT}"
-  viewBox="0 0 {WIDTH} {HEIGHT}"
->
-  <defs>
-    <filter id="redGlow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="2.5" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-  </defs>
+          for index, (x, y) in enumerate(points):
 
-  <rect
-    x="{rect_x}"
-    y="{rect_y}"
-    width="{rect_w}"
-    height="{rect_h}"
-    rx="{rect_rx}"
-    fill="#0d1117"
-    stroke="#30363d"
-    stroke-width="2"
-  />
+              opacity = opacity_levels[
+                  index % len(opacity_levels)
+              ]
 
-  <g filter="url(#redGlow)">
-{''.join(dots_svg)}
-  </g>
+              disappear_at = (
+                  index / total
+              )
 
-  <path
-    id="snakePath"
-    d="{path_d}"
-    fill="none"
-    stroke="none"
-  />
+              before = max(
+                  0.0,
+                  disappear_at - 0.008
+              )
 
-  <g>
-{''.join(snake_svg)}
-  </g>
+              svg.append(
+                  f'<circle cx="{x}" cy="{y}" '
+                  f'r="6.5" fill="#ff0000" '
+                  f'opacity="{opacity}">'
+                  f'<animate '
+                  f'attributeName="opacity" '
+                  f'values="{opacity};{opacity};0;0" '
+                  f'keyTimes="0;{before:.4f};'
+                  f'{disappear_at:.4f};1" '
+                  f'dur="{duration}s" '
+                  f'repeatCount="indefinite"/>'
+                  f'</circle>'
+              )
 
-  <rect
-    x="{rect_x}"
-    y="{rect_y}"
-    width="{rect_w}"
-    height="{rect_h}"
-    rx="{rect_rx}"
-    fill="none"
-    stroke="#30363d"
-    stroke-width="4"
-  />
-</svg>
-'''
+          svg.append('</g>')
 
-          Path("assets/snake.svg").write_text(svg, encoding="utf-8")
+          svg.append(
+              f'<path id="snakePath" '
+              f'd="{path}" '
+              f'fill="none" stroke="none"/>'
+          )
+
+          snake = [
+              (10.0, "#000000", 0.00),
+              (9.5, "#020202", -0.12),
+              (9.0, "#050505", -0.24),
+              (8.5, "#080808", -0.36),
+              (8.0, "#0b0b0b", -0.48),
+              (7.5, "#101010", -0.60),
+              (7.0, "#151515", -0.72),
+              (6.5, "#1a1a1a", -0.84),
+              (6.0, "#202020", -0.96),
+              (5.5, "#262626", -1.08)
+          ]
+
+          for radius, color, begin in snake:
+
+              svg.append(
+                  f'<circle r="{radius}" '
+                  f'fill="{color}">'
+                  f'<animateMotion '
+                  f'dur="{duration}s" '
+                  f'begin="{begin}s" '
+                  f'repeatCount="indefinite">'
+                  f'<mpath href="#snakePath"/>'
+                  f'</animateMotion>'
+                  f'</circle>'
+              )
+
+          svg.append(
+              '<rect x="10" y="10" '
+              'width="880" height=220" '
+              'rx="18" fill="none" '
+              'stroke="#30363d" '
+              'stroke-width="4"/>'
+          )
+
+          svg.append('</svg>')
+
+          Path("assets/snake.svg").write_text(
+              "\n".join(svg),
+              encoding="utf-8"
+          )
           PY
 
-      - name: Commit generated
-      uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update custom snake"
-          file_pattern: assets/snake.svg snake
+      - name: Commit generated snake
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+          git add assets/snake.svg
+
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "Update custom snake"
+            git push
+          fi"2
