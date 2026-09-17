@@ -84,28 +84,24 @@ jobs:
           )
 
           opacity_levels = [
-              0.25,
-              0.40,
-              0.60,
-              0.80,
+              0.20,
+              0.35,
+              0.55,
+              0.75,
               1.00
           ]
 
           svg.append('<g filter="url(#glow)">')
 
           for index, (x, y) in enumerate(points):
-
               opacity = opacity_levels[
                   index % len(opacity_levels)
               ]
 
-              disappear_at = (
-                  index / total
-              )
-
+              progress = index / max(total - 1, 1)
               before = max(
                   0.0,
-                  disappear_at - 0.008
+                  progress - 0.005
               )
 
               svg.append(
@@ -116,7 +112,7 @@ jobs:
                   f'attributeName="opacity" '
                   f'values="{opacity};{opacity};0;0" '
                   f'keyTimes="0;{before:.4f};'
-                  f'{disappear_at:.4f};1" '
+                  f'{progress:.4f};1" '
                   f'dur="{duration}s" '
                   f'repeatCount="indefinite"/>'
                   f'</circle>'
@@ -144,7 +140,6 @@ jobs:
           ]
 
           for radius, color, begin in snake:
-
               svg.append(
                   f'<circle r="{radius}" '
                   f'fill="{color}">'
@@ -159,7 +154,7 @@ jobs:
 
           svg.append(
               '<rect x="10" y="10" '
-              'width="880" height=220" '
+              'width="880" height="220" '
               'rx="18" fill="none" '
               'stroke="#30363d" '
               'stroke-width="4"/>'
@@ -174,15 +169,7 @@ jobs:
           PY
 
       - name: Commit generated snake
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-
-          git add assets/snake.svg
-
-          if git diff --cached --quiet; then
-            echo "No changes"
-          else
-            git commit -m "Update custom snake"
-            git push
-          fi"2
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "Update custom snake"
+          file_pattern: assets/snake.svg"none
